@@ -27,21 +27,26 @@ var SERVICES = [
  {name:'Consulting', price:'999', desc:'One call. Honest answers on your website, design and next move.'}
 ];
 var track = document.getElementById('workTrack');
+var SVG_PAUSE='<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>';
+var SVG_PLAY='<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>';
 WORK.forEach(function(w){
   var a = document.createElement('article'); a.className='work_card';
-  a.innerHTML = '<a href="'+w.url+'" target="_blank" rel="noopener" draggable="false"><div class="work_poster"><video muted loop playsinline preload="metadata" poster="'+w.img+'" src="'+w.vid+'" aria-label="'+w.name+' — live site in motion"></video><span class="work_open">Visit live site</span></div></a>'+
-  '<div class="work_body"><h4>'+w.name+'</h4><p class="body muted">'+w.bio+'</p>'+
-  '<dl class="work_stats"><div><dt>Type</dt><dd>'+w.type+'</dd></div><div><dt>Place</dt><dd>'+w.place+'</dd></div><div><dt>Status</dt><dd><span class="live">●</span> '+w.status+'</dd></div></dl></div>';
+  a.innerHTML = '<div class="work_poster"><video muted loop playsinline preload="metadata" poster="'+w.img+'" src="'+w.vid+'" aria-label="'+w.name+' — live site in motion"></video>'+
+  '<div class="vc"><button class="vc_btn vc_play" type="button" aria-label="Pause video">'+SVG_PAUSE+'</button><div class="vc_bar"><i></i></div><button class="vc_btn vc_mute" type="button" aria-label="Toggle sound" style="opacity:.55"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5L6 9H3v6h3l5 4V5z" fill="currentColor" stroke="none"/><path d="M16 9l5 6M21 9l-5 6"/></svg></button></div></div>'+
+  '<div class="work_body"><h3>'+w.name+'</h3><p class="body work_bio">'+w.bio+'</p>'+
+  '<dl class="work_stats"><div class="ws_row"><dt>Type</dt><dd>'+w.type+'</dd></div><div class="ws_row"><dt>Place</dt><dd>'+w.place+'</dd></div><div class="ws_row"><dt>Status</dt><dd><span class="live">●</span> '+w.status+'</dd></div></dl>'+
+  '<div class="work_cta"><p>Inspired by this work?</p><a class="wc_btn" href="'+w.url+'" target="_blank" rel="noopener" draggable="false"><span>Visit live site</span><span class="btn_icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M7 17L17 7M9 7h8v8"/></svg></span></a></div></div>';
   track.appendChild(a);
 });
-var svcRail = document.getElementById('svcRail');
-SERVICES.forEach(function(s){
-  var d=document.createElement('div'); d.className='svc_card';
-  d.innerHTML='<div><p class="eyebrow">'+s.name+'</p><p class="body muted" style="margin-top:.75rem">'+s.desc+'</p></div><p class="svc_price"><span class="cur">₹</span>'+s.price+'</p>';
-  svcRail.appendChild(d);
+/* video controls (ref performers pattern: pause, progress, mute) */
+track.querySelectorAll('.work_card').forEach(function(card){
+  var v=card.querySelector('video'), bar=card.querySelector('.vc_bar i'), pb=card.querySelector('.vc_play'), mb=card.querySelector('.vc_mute');
+  v.addEventListener('timeupdate',function(){ if(v.duration) bar.style.width=(v.currentTime/v.duration*100)+'%'; });
+  pb.addEventListener('click',function(){ if(v.paused){ var pr=v.play(); if(pr&&pr.catch)pr.catch(function(){}); pb.innerHTML=SVG_PAUSE; pb.setAttribute('aria-label','Pause video'); } else { v.pause(); pb.innerHTML=SVG_PLAY; pb.setAttribute('aria-label','Play video'); } });
+  mb.addEventListener('click',function(){ v.muted=!v.muted; mb.style.opacity=v.muted?'.55':'1'; });
 });
 /* marquee: services tickers, duplicated group (reference pattern) */
-var pills = SERVICES.map(function(s){return '<span class="marquee_pill">'+s.name+' <b>₹'+s.price+'</b></span>'}).join('');
+var pills = SERVICES.map(function(s){return '<span class="marquee_pill">'+s.name+'</span>'}).join('');
 var group = '<div class="marquee_group">'+pills+pills+'</div>';
 document.getElementById('marqueeTrack').innerHTML = group + group;
 
@@ -49,7 +54,8 @@ document.getElementById('marqueeTrack').innerHTML = group + group;
    Tracks the full hero-critical set: 48 figure frames, normal map, figure poster,
    FKGrotesk font, 6 work posters. Bytes counted from response streams. Session-once. */
 var ASSETS = (function(){
-  var list = ['assets/gl/normal.webp','assets/gl/poster.webp','assets/fonts/FKGrotesk-Regular.woff2'];
+  var list = ['assets/gl/normal.webp','assets/gl/poster.webp','assets/fonts/FKGrotesk-Regular.woff2',
+    'assets/gl/cards/card-alessandro.webp','assets/gl/cards/card-paradise.webp','assets/gl/cards/card-videotheque.webp','assets/gl/cards/card-shashiclicks.webp','assets/gl/cards/card-mayuri.webp'];
   for (var i=0;i<48;i++) list.push('assets/gl/frames/fig-'+('00'+i).slice(-3)+'.webp');
   WORK.forEach(function(w){ list.push(w.img); });
   return list;
@@ -160,7 +166,8 @@ function setSteps(p){
   for(var k=0;k<3;k++){ var bar=document.getElementById('sp'+k); var f=segFrac(p,segs[k][0],segs[k][1]); bar.className = f>=1?'done':(f>0?'act':''); if(f>0&&f<1) bar.style.setProperty('--p',f); }
   if(question) question.style.opacity = String(1-segFrac(p,0.155,0.205));
   var of = segFrac(p,0.905,0.96);
-  if(stepsUi) stepsUi.style.opacity = String(1-of);
+  /* ref: no pills/copy during the question segment — UI fades in with step 1 */
+  if(stepsUi) stepsUi.style.opacity = String(segFrac(p,0.185,0.21)*(1-of));
   if(outro){ outro.style.opacity = String(of); outro.style.pointerEvents = of>0.5 ? 'auto' : 'none'; }
 }
 if (hasGsap && typeof ScrollTrigger !== 'undefined' && !reduced){
@@ -187,9 +194,12 @@ document.querySelectorAll('[data-stat]').forEach(function(el){
   var dotsBox=document.getElementById('workDots');
   var videos=Array.prototype.slice.call(track.querySelectorAll('video'));
   WORK.forEach(function(_,i){ var d=document.createElement('i'); if(i===0)d.className='on'; dotsBox.appendChild(d); });
-  function cardW(){ return Math.min(416, window.innerWidth*0.82)+28; }
-  function maxX(){ return Math.max(0, track.scrollWidth - view.clientWidth + 32); }
-  function clampX(v){ return Math.min(0, Math.max(-maxX(), v)); }
+  function cardW(){ var c=track.querySelector('.work_card'); return (c?c.offsetWidth:792)+28; }
+  /* ref performers rail: the active card sits CENTRED, neighbours peek at both edges */
+  function homeX(){ var c=track.querySelector('.work_card'); return Math.max(0,(view.clientWidth-(c?c.offsetWidth:792))/2-32); }
+  function maxX(){ return Math.max(0, track.scrollWidth - view.clientWidth + 64); }
+  function clampX(v){ var h=homeX(); return Math.min(h, Math.max(h-maxX(), v)); }
+  x = homeX() - cardW(); /* open on card 2, neighbours peeking both sides like the ref */
   function buffer(idx){
     if(idx===activeIdx) return; activeIdx=idx;
     videos.forEach(function(v,i){
@@ -198,7 +208,7 @@ document.querySelectorAll('[data-stat]').forEach(function(el){
     });
     Array.prototype.forEach.call(dotsBox.children,function(d,i){ d.classList.toggle('on', i===idx); });
   }
-  function apply(){ track.style.transform='translateX('+x+'px)'; buffer(Math.min(WORK.length-1,Math.max(0,Math.round(Math.abs(x)/cardW())))); }
+  function apply(){ track.style.transform='translateX('+x+'px)'; buffer(Math.min(WORK.length-1,Math.max(0,Math.round((homeX()-x)/cardW())))); }
   function step(dir){ x=clampX(x - dir*cardW()); apply(); }
   document.getElementById('workNext').addEventListener('click',function(){ step(1); });
   document.getElementById('workPrev').addEventListener('click',function(){ step(-1); });
@@ -213,14 +223,22 @@ document.querySelectorAll('[data-stat]').forEach(function(el){
   apply();
 })();
 
-/* ---------- services rail: scroll-scrubbed translate (ref rail pattern: top 60% -> bottom 25%) ---------- */
+/* ---------- services marquee: scroll-scrubbed translate (ref hall-of-fame pattern) ---------- */
 (function(){
-  var view=document.getElementById('svcView');
+  var t=document.getElementById('svcTrack'); if(!t)return;
   if (hasGsap && typeof ScrollTrigger!=='undefined' && !reduced && window.innerWidth>991){
-    var dist=function(){ return Math.max(0, svcRail.scrollWidth - view.clientWidth + 64); };
-    gsap.to(svcRail,{x:function(){ return -dist(); },ease:'none',scrollTrigger:{trigger:'#services',start:'top 60%',end:'bottom 25%',scrub:true}});
-  } else { view.style.overflowX='auto'; }
+    var dist=function(){ return Math.max(0, t.scrollWidth - window.innerWidth + 64); };
+    gsap.to(t,{x:function(){ return -dist(); },ease:'none',scrollTrigger:{trigger:'#services',start:'top 75%',end:'bottom 30%',scrub:true}});
+  } else { t.parentElement.style.overflowX='auto'; }
 })();
+
+/* ---------- FAQ: View all opens every item (ref faq header pattern) ---------- */
+var faqAll=document.getElementById('faqAll');
+if (faqAll) faqAll.addEventListener('click',function(){
+  document.querySelectorAll('.faq_item').forEach(function(item){
+    item.classList.add('is-open'); var a=item.querySelector('.faq_a'); a.style.maxHeight=a.scrollHeight+'px'; item.querySelector('.faq_q').setAttribute('aria-expanded','true');
+  });
+});
 
 /* ---------- FAQ accordion ---------- */
 document.querySelectorAll('.faq_item').forEach(function(item){

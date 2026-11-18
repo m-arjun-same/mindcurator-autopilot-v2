@@ -49,7 +49,7 @@ const relightFrag = /* glsl */`
     vec3 L = normalize(vec3(uLight, 0.85));
     float dif = clamp(dot(normalize(n), L), 0.0, 1.0);
     vec3 col = base.rgb * (1.0 - uShade + uShade * (0.72 + 0.5 * dif));
-    col += vec3(0.235, 0.745, 0.412) * pow(dif, 6.0) * 0.18 * base.a;
+    col += vec3(1.0, 0.96, 0.9) * pow(dif, 6.0) * 0.10 * base.a;
     gl_FragColor = vec4(col, base.a * uOpacity);
   }`;
 function relightMat(texA, texB, normal, shade) {
@@ -71,36 +71,42 @@ const figureNormal = loadTex('assets/gl/normal.webp', false);
 /* figure: frame-sequence plane, 880x1100 aspect */
 const frameTex = [];
 for (let i = 0; i < FRAMES; i++) frameTex.push(loadTex(frameUrl(i), true));
-const figureMat = relightMat(frameTex[0], frameTex[1], figureNormal, 0.55);
-const figure = new THREE.Mesh(new THREE.PlaneGeometry(4.0, 5.0), figureMat);
-figure.position.set(0, 0.1, 0);
+const figureMat = relightMat(frameTex[0], frameTex[1], figureNormal, 0.42);
+const figure = new THREE.Mesh(new THREE.PlaneGeometry(5.2, 6.5), figureMat);
+figure.position.set(0.55, -0.2, 0);
 
-/* floating cards (WebGL planes, ref cards-front geometry role) */
-const cardTexUrls = ['assets/img/work-alessandro.webp', 'assets/img/work-paradise.webp', 'assets/img/work-shashiclicks.webp', 'assets/img/work-videotheque.webp'];
-const cards = cardTexUrls.map((u, i) => {
-  const m = relightMat(loadTex(u, true), null, flatNormal, 0.3);
-  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 1.55), m);
-  mesh.userData.home = [
-    new THREE.Vector3(-2.75, 1.5, -0.8), new THREE.Vector3(2.85, 1.8, -1.1),
-    new THREE.Vector3(-2.15, -1.65, 0.4), new THREE.Vector3(2.7, -1.8, -0.5)
-  ][i];
+/* floating cards: small translucent glass chart cards at the ref positions
+   (left-top, over the face, right of the head, lower-right cluster, far right) */
+const cardDefs = [
+  { u: 'assets/gl/cards/card-alessandro.webp', w: 1.55, h: 1.05, home: [-2.5, 1.35, -0.8], ry: 0.45, rz: -0.10 },
+  { u: 'assets/gl/cards/card-paradise.webp', w: 1.9, h: 1.28, home: [-1.0, 0.05, 0.3], ry: -0.30, rz: 0.06 },
+  { u: 'assets/gl/cards/card-videotheque.webp', w: 2.0, h: 1.35, home: [1.85, 1.0, -1.0], ry: -0.50, rz: 0.09 },
+  { u: 'assets/gl/cards/card-shashiclicks.webp', w: 2.1, h: 1.42, home: [1.25, -0.75, -0.4], ry: -0.35, rz: -0.05 },
+  { u: 'assets/gl/cards/card-mayuri.webp', w: 1.6, h: 1.08, home: [3.1, -0.35, -1.4], ry: -0.65, rz: 0.12 }
+];
+const cards = cardDefs.map((def, i) => {
+  const m = relightMat(loadTex(def.u, true), null, flatNormal, 0.3);
+  const mesh = new THREE.Mesh(new THREE.PlaneGeometry(def.w, def.h), m);
+  mesh.userData.home = new THREE.Vector3(...def.home);
+  mesh.userData.ry = def.ry; mesh.userData.rz = def.rz;
   mesh.userData.phase = i * 1.7;
   mesh.position.copy(mesh.userData.home);
+  mesh.rotation.set(0, def.ry, def.rz);
   return mesh;
 });
 
-/* ellipse glow behind the figure */
+/* soft neutral halo behind the head (the ref ellipse_wrap), NOT a colour glow */
 function glowTexture() {
   const c = document.createElement('canvas'); c.width = 256; c.height = 128;
   const g = c.getContext('2d');
   const grad = g.createRadialGradient(128, 64, 4, 128, 64, 126);
-  grad.addColorStop(0, 'rgba(60,190,105,0.55)'); grad.addColorStop(0.55, 'rgba(60,190,105,0.14)'); grad.addColorStop(1, 'rgba(60,190,105,0)');
+  grad.addColorStop(0, 'rgba(255,255,255,0.10)'); grad.addColorStop(0.55, 'rgba(255,255,255,0.03)'); grad.addColorStop(1, 'rgba(255,255,255,0)');
   g.fillStyle = grad; g.fillRect(0, 0, 256, 128);
   const t = new THREE.CanvasTexture(c); return t;
 }
-const ellipse = new THREE.Mesh(new THREE.PlaneGeometry(9.5, 4.8),
+const ellipse = new THREE.Mesh(new THREE.PlaneGeometry(8.5, 4.2),
   new THREE.MeshBasicMaterial({ map: glowTexture(), transparent: true, depthWrite: false }));
-ellipse.position.set(0, -0.7, -2);
+ellipse.position.set(0.55, 1.2, -2);
 
 /* footer scene background: fullscreen quad, grid + glow shader */
 const footerMat = new THREE.ShaderMaterial({
@@ -113,7 +119,7 @@ const footerMat = new THREE.ShaderMaterial({
       vec2 g = abs(fract(vUv * vec2(28.0, 16.0)) - 0.5);
       float line = smoothstep(0.48, 0.5, max(g.x, g.y)) * 0.05;
       float glow = pow(1.0 - distance(vUv, vec2(0.5, 1.05)), 2.2) * 0.35;
-      vec3 col = vec3(0.051) + vec3(0.235, 0.745, 0.412) * glow + vec3(line);
+      vec3 col = vec3(0.051) + vec3(0.85) * glow * 0.5 + vec3(line);
       gl_FragColor = vec4(col, uA);
     }`
 });
@@ -129,13 +135,16 @@ function layout() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h; camera.updateProjectionMatrix();
   const desktop = w > 991;
-  state.baseX = desktop ? 1.15 : 0; state.desktop = desktop;
+  state.baseX = 0; state.desktop = desktop;
   heroGroup.position.x = state.baseX;
-  heroGroup.position.y = desktop ? 0.1 : 0.35;
-  state.spreadX = desktop ? 1 : 0.52;
-  const s = desktop ? 1 : 0.62;
+  heroGroup.position.y = desktop ? 0.1 : -0.3;
+  state.spreadX = desktop ? 1 : 0.55;
+  const s = desktop ? 1 : 0.8;
   state.baseScale = s;
   heroGroup.scale.setScalar(s);
+  state.figY = desktop ? -0.02 : -0.55;
+  figure.position.x = desktop ? 0.8 : 0.65;
+  figure.scale.setScalar(desktop ? 1 : 1.05);
 }
 layout();
 window.addEventListener('resize', layout);
@@ -176,18 +185,18 @@ function tick() {
   const ly = Math.cos(p * Math.PI * 0.9 + state.my * 0.4) * 0.7 + 0.25;
   figureMat.uniforms.uLight.value.set(lx, ly);
   figureMat.uniforms.uOpacity.value = state.heroVis;
-  figure.position.y = 0.1 + Math.sin(t * 0.7) * 0.05 + p * 0.7;
-  figure.rotation.y = -0.14 + p * 0.28 + state.mx * 0.05;
+  figure.position.y = (state.figY || -0.2) + Math.sin(t * 0.7) * 0.05 + p * 0.7;
+  figure.rotation.y = -0.06 + p * 0.12 + state.mx * 0.05;
   heroGroup.rotation.y = state.mx * 0.03;
-  heroGroup.position.x = state.baseX + (state.desktop ? p * 0.8 : 0);
+  heroGroup.position.x = state.baseX + (state.desktop ? p * 0.3 : 0);
   heroGroup.scale.setScalar((state.baseScale || 1) * (1 + p * 0.38)); /* scene pushes in through steps, like the ref character close-up */
   cards.forEach((c, i) => {
     const h0 = c.userData.home, ph = c.userData.phase;
     c.position.x = h0.x * state.spreadX * (1 + p * 0.14) + Math.sin(t * 0.5 + ph) * 0.08;
     c.position.y = h0.y * (1 + p * 0.2) + Math.cos(t * 0.42 + ph) * 0.09 + p * (i % 2 ? 0.9 : -0.6);
-    c.rotation.z = Math.sin(ph) * 0.06 + p * (i % 2 ? -0.22 : 0.22);
-    c.rotation.y = -h0.x * 0.045 + p * 0.18 * (i % 2 ? 1 : -1);
-    c.material.uniforms.uOpacity.value = state.heroVis;
+    c.rotation.z = c.userData.rz + p * (i % 2 ? -0.22 : 0.22);
+    c.rotation.y = c.userData.ry + p * 0.18 * (i % 2 ? 1 : -1);
+    c.material.uniforms.uOpacity.value = state.heroVis * 0.88;
     c.material.uniforms.uLight.value.set(lx, ly);
   });
   ellipse.material.opacity = 0.85 * state.heroVis;
